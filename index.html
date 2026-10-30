@@ -1,0 +1,1919 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>写真管理台帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --ink:#1C2430;
+    --paper:#F5F3EC;
+    --paper-card:#FFFFFF;
+    --steel:#2F5D82;
+    --steel-dark:#1D3A54;
+    --steel-pale:#E4ECF2;
+    --rust:#C1440E;
+    --rust-pale:#F7E3D8;
+    --line:#DAD4C4;
+    --line-strong:#B9B2A0;
+    --ok:#3C7A54;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Noto Sans JP",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"JetBrains Mono",monospace;}
+  .head-font{font-family:"Zen Kaku Gothic New",sans-serif;}
+
+  /* ---------- top bar ---------- */
+  #topbar{
+    position:sticky; top:0; z-index:40;
+    background:var(--steel-dark);
+    color:#fff;
+    padding:14px 20px;
+    display:flex; flex-wrap:wrap; gap:14px; align-items:center;
+    box-shadow:0 2px 10px rgba(0,0,0,.18);
+  }
+  #topbar .brand{
+    font-family:"Zen Kaku Gothic New",sans-serif;
+    font-weight:900; font-size:16px; letter-spacing:.04em;
+    display:flex; align-items:center; gap:8px; margin-right:6px;
+    white-space:nowrap;
+  }
+  #topbar .brand .tag{
+    width:10px;height:10px;background:var(--rust);border-radius:2px;display:inline-block;
+    transform:rotate(45deg);
+  }
+  .field-inline{display:flex; flex-direction:column; gap:2px;}
+  .field-inline label{font-size:10px; color:#B9C7D3; letter-spacing:.05em;}
+  .field-inline input{
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.25);
+    color:#fff; border-radius:6px; padding:6px 8px; font-size:13px;
+    font-family:"Noto Sans JP",sans-serif;
+    min-width:170px;
+  }
+  .field-inline input::placeholder{color:rgba(255,255,255,.5);}
+  .field-inline input[type=date]{min-width:150px; color-scheme:dark;}
+  #topbar .spacer{flex:1;}
+  .btn{
+    border:none; border-radius:7px; padding:9px 14px; font-size:13px; font-weight:700;
+    cursor:pointer; font-family:"Noto Sans JP",sans-serif; display:inline-flex; align-items:center; gap:6px;
+    transition:filter .12s, transform .05s;
+    white-space:nowrap;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--rust); color:#fff;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-ghost{background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.3);}
+  .btn-ghost:hover{background:rgba(255,255,255,.18);}
+  .btn-outline{background:#fff; color:var(--steel-dark); border:1.5px solid var(--steel);}
+  .btn-outline:hover{background:var(--steel-pale);}
+  .btn-danger{background:#B4392D;color:#fff;}
+  .btn-sm{padding:5px 9px; font-size:12px; border-radius:6px;}
+  .btn[disabled]{opacity:.45; cursor:not-allowed;}
+
+  /* ---------- layout ---------- */
+  #main{max-width:900px; margin:0 auto; padding:22px 16px 80px;}
+  #empty{
+    text-align:center; padding:70px 20px; color:#8A8371;
+  }
+  #empty .big{font-size:42px; margin-bottom:6px;}
+  #empty h2{font-family:"Zen Kaku Gothic New",sans-serif; color:var(--ink); font-size:18px; margin:6px 0 4px;}
+
+  .entry-card{
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    margin-bottom:22px;
+    overflow:hidden;
+    box-shadow:0 1px 3px rgba(20,20,10,.06);
+    position:relative;
+  }
+  .entry-topline{
+    display:flex; align-items:stretch; border-bottom:1px solid var(--line);
+  }
+  .no-tab{
+    background:var(--steel-dark); color:#fff;
+    width:64px; flex:0 0 64px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:"JetBrains Mono",monospace;
+    position:relative;
+  }
+  .no-tab .lbl{font-size:9px; letter-spacing:.12em; color:#9FB6C6; margin-bottom:2px;}
+  .no-tab .num{font-size:22px; font-weight:700;}
+  .no-tab::after{
+    content:""; position:absolute; right:-6px; top:50%; transform:translateY(-50%);
+    width:12px;height:12px; background:var(--paper-card); border-radius:50%;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .entry-controls{
+    flex:1; display:flex; align-items:center; gap:6px; padding:8px 10px; flex-wrap:wrap;
+  }
+  .entry-controls .grow{flex:1;}
+  .order-btns{display:flex; gap:3px;}
+
+  .entry-body{display:flex; flex-wrap:wrap;}
+  .photo-pane{
+    flex:1 1 420px; min-width:280px; background:#101418; position:relative;
+  }
+  .photo-pane .canvas-wrap{position:relative; width:100%; line-height:0;}
+  .photo-pane canvas{width:100%; height:auto; display:block; cursor:crosshair; touch-action:none;}
+  .photo-pane .callout-input{
+    position:absolute; z-index:5; font-family:"Noto Sans JP",sans-serif; font-size:13px;
+    font-weight:600; line-height:1.25; box-sizing:border-box;
+    border:2px solid var(--rust); border-radius:0; padding:4px 6px; outline:none;
+    background:#fff; min-width:80px; resize:none; overflow:hidden;
+    box-shadow:0 0 0 3px rgba(0,194,255,.28);
+  }
+  .no-photo{
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    color:#6c7683; min-height:220px; gap:10px;
+  }
+  .no-photo .btn{font-size:13px;}
+
+  .toolbar{
+    display:flex; gap:4px; flex-wrap:wrap; align-items:center;
+    padding:7px 8px; background:#1A2028; border-top:1px solid #2A323C;
+  }
+  .tool-btn{
+    background:#2A323C; color:#DCE3E8; border:1px solid #3A434F; border-radius:6px;
+    padding:6px 9px; font-size:12px; cursor:pointer; font-family:"Noto Sans JP",sans-serif;
+    display:flex; align-items:center; gap:4px;
+  }
+  .tool-btn.active{background:var(--rust); border-color:var(--rust); color:#fff;}
+  .tool-btn:hover{filter:brightness(1.15);}
+  .tool-btn:disabled{opacity:.35; cursor:not-allowed; pointer-events:none;}
+  .swatch{
+    width:18px;height:18px;border-radius:50%; cursor:pointer; border:2px solid transparent;
+  }
+  .swatch.active{border-color:#fff;}
+  .toolbar .sep{width:1px; align-self:stretch; background:#3A434F; margin:0 3px;}
+
+  .comment-pane{
+    flex:1 1 260px; min-width:220px; display:flex; flex-direction:column;
+    padding:14px; gap:8px; background:#FBFAF6;
+  }
+  .comment-pane label{font-size:11px; color:#8A8371; font-weight:700; letter-spacing:.04em;}
+  .comment-pane textarea{
+    flex:1; min-height:160px; resize:vertical; border:1px solid var(--line-strong);
+    border-radius:7px; padding:10px; font-family:"Noto Sans JP",sans-serif; font-size:14px;
+    line-height:1.6; color:var(--ink); background:#fff;
+  }
+  .comment-pane textarea:focus{outline:2px solid var(--steel); outline-offset:1px;}
+
+  .add-zone{
+    border:2px dashed var(--line-strong); border-radius:var(--radius);
+    padding:34px 20px; text-align:center; color:#8A8371; cursor:pointer;
+    transition:background .15s, border-color .15s;
+  }
+  .add-zone:hover, .add-zone.drag{background:var(--steel-pale); border-color:var(--steel);}
+  .add-zone .big{font-size:26px; color:var(--steel);}
+  .add-zone h3{margin:6px 0 2px; color:var(--ink); font-family:"Zen Kaku Gothic New",sans-serif;}
+  .add-zone p{margin:0; font-size:12px;}
+
+  #toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:8px; font-size:13px;
+    opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:100;
+    box-shadow:0 6px 20px rgba(0,0,0,.25);
+  }
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .confirm-del{background:#B4392D !important;}
+
+  #dropOverlay{
+    position:fixed; inset:0; background:rgba(47,93,130,.85); z-index:200;
+    display:none; align-items:center; justify-content:center; color:#fff; font-size:22px;
+    font-family:"Zen Kaku Gothic New",sans-serif; pointer-events:none;
+  }
+  #dropOverlay.show{display:flex;}
+
+  footer{
+    text-align:center; color:#A79F8C; font-size:11px; padding:20px 0 40px;
+  }
+
+  @media (max-width:560px){
+    #topbar{padding:10px 12px;}
+    .field-inline input{min-width:130px;}
+    #main{padding:16px 8px 70px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand"><span class="tag"></span>写真管理台帳</div>
+  <div class="field-inline">
+    <label>現場名</label>
+    <input id="siteName" type="text" placeholder="例：S-net静岡株式会社 Dr.Driveセルフ焼津小川SS">
+  </div>
+  <div class="field-inline">
+    <label>撮影日</label>
+    <input id="shootDate" type="date">
+  </div>
+  <div class="spacer"></div>
+  <label class="field-inline" style="flex-direction:row; align-items:center; gap:6px; white-space:nowrap;" title="写真が6枚未満の場合、残りの枠をダミー画像（写真未添付）で埋めて6枚固定のレイアウトで出力します">
+    <input type="checkbox" id="padTo6Check" style="width:15px;height:15px;">
+    <span style="font-size:12px; color:#B9C7D3;">6枠固定(ダミー埋め)</span>
+  </label>
+  <button class="btn btn-outline" id="btnExportXlsx">Excel出力</button>
+  <button class="btn btn-outline" id="btnExportPdf">PDF出力</button>
+  <button class="btn btn-ghost" id="btnSaveProject">プロジェクト保存</button>
+  <button class="btn btn-ghost" id="btnLoadProject">プロジェクト読み込み</button>
+  <input type="file" id="projectFileInput" accept="application/json,.json" style="display:none">
+  <button class="btn btn-ghost" id="btnReset">全消去</button>
+</div>
+
+<div id="main">
+  <div id="entryList"></div>
+
+  <div class="add-zone" id="addZone">
+    <div class="big">＋</div>
+    <h3>写真を追加</h3>
+    <p>クリックして選択、またはドラッグ＆ドロップ（複数可）</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+
+  <footer>入力内容はこの端末のブラウザ内に自動保存されます。共有・引き継ぎはExcel/PDF出力をご利用ください。</footer>
+</div>
+
+<div id="toast"></div>
+<div id="dropOverlay">写真をドロップして追加</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   状態管理
+============================================================ */
+let state = {
+  siteName:"",
+  shootDate:"",
+  order:[],        // entry id の並び順
+};
+let entries = {};  // id -> entry object (メモリ上のフル情報。annotations等)
+let imgCache = {}; // id -> Image object
+
+const COLORS = ["#E23B2E", "#111417", "#2F5D82", "#E0A22A", "#3C7A54"];
+
+/* 添付いただいた実ファイル（写真貼付台紙）から画像・入力値だけを取り除いたテンプレート。
+   罫線・フォント・列幅など書式はすべて元ファイルそのまま。 */
+const TEMPLATE_XLSX_B64 = "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";
+const LINE_WIDTHS = [2, 4, 7];
+const FONT_SIZES = [16, 22, 30];
+const LINE_TYPES = [
+  ["straight", "直線"],
+  ["arrow-one", "片矢印"],
+  ["arrow-two", "両矢印"],
+  ["wavy", "波線"]
+];
+
+function uid(){ return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+/* ---------- storage helpers ---------- */
+// このアプリはダウンロードして単体のHTMLファイルとしてブラウザで開く運用のため、
+// Claudeのチャット内アーティファクト専用API(window.storage)は使わず、
+// 通常のブラウザで確実に使えるlocalStorageに保存する。
+const LS_PREFIX = 'photo-ledger:';
+let storageWarned = false;
+async function storGet(key){
+  try{
+    const raw = localStorage.getItem(LS_PREFIX + key);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+async function storSet(key, val){
+  try{ localStorage.setItem(LS_PREFIX + key, JSON.stringify(val)); }
+  catch(e){
+    console.warn('storage set failed', key, e);
+    // 容量オーバーやプライベートブラウジング等、本当に保存できない場合のみ、
+    // セッション中1回だけ知らせる(操作のたびに出ると煩わしいため)
+    if(!storageWarned){ storageWarned = true; showToast('この端末への自動保存に失敗しました（保存容量やブラウザ設定をご確認ください）'); }
+  }
+}
+async function storDelete(key){
+  try{ localStorage.removeItem(LS_PREFIX + key); }catch(e){}
+}
+
+function saveMetaDebounced(){
+  clearTimeout(saveMetaDebounced._t);
+  saveMetaDebounced._t = setTimeout(()=>{
+    storSet('ledger-meta', {siteName:state.siteName, shootDate:state.shootDate, order:state.order});
+  }, 300);
+}
+function saveEntryDebounced(id){
+  clearTimeout(saveEntryDebounced['_t_'+id]);
+  saveEntryDebounced['_t_'+id] = setTimeout(()=>{
+    const e = entries[id];
+    if(!e) return;
+    storSet('entry-'+id, {comment:e.comment, img:e.img, natW:e.natW, natH:e.natH, annotations:e.annotations});
+  }, 300);
+}
+
+/* ============================================================
+   初期化・復元
+============================================================ */
+async function init(){
+  const meta = await storGet('ledger-meta');
+  if(meta){
+    state.siteName = meta.siteName || "";
+    state.shootDate = meta.shootDate || "";
+    state.order = meta.order || [];
+  }
+  document.getElementById('siteName').value = state.siteName;
+  document.getElementById('shootDate').value = state.shootDate;
+
+  for(const id of state.order.slice()){
+    const data = await storGet('entry-'+id);
+    if(data){
+      entries[id] = Object.assign({id, comment:'', annotations:[]}, data, {
+        tool:'select', selected:-1, color: COLORS[0], lw: LINE_WIDTHS[1], lineType: 'arrow-one',
+        labelFontSize: FONT_SIZES[1], labelShowLeader: true, history: [], future: [], _imgCache: {}
+      });
+      await new Promise(res=>{
+        const img = new Image();
+        img.onload = res; img.onerror = res;
+        img.src = data.img;
+        imgCache[id] = img;
+      });
+      // 重ね合わせ画像（image注記）も復元
+      const insetImgs = entries[id].annotations.filter(a=>a.type==='image' && a.src);
+      await Promise.all(insetImgs.map(a=> new Promise(res=>{
+        const im = new Image();
+        im.onload = res; im.onerror = res;
+        im.src = a.src;
+        entries[id]._imgCache[a._id] = im;
+      })));
+    } else {
+      state.order = state.order.filter(x=>x!==id);
+    }
+  }
+  renderAll();
+}
+
+/* ============================================================
+   画像取り込み
+============================================================ */
+function loadImageFile(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>resolve(img);
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addPhotoFiles(fileList){
+  const files = Array.from(fileList).filter(f=>f.type.startsWith('image/'));
+  if(!files.length) return;
+  for(const file of files){
+    try{
+      const img = await loadImageFile(file);
+      const MAXD = 1200;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const scale = Math.min(1, MAXD / Math.max(w,h));
+      w = Math.round(w*scale); h = Math.round(h*scale);
+      const off = document.createElement('canvas');
+      off.width = w; off.height = h;
+      off.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataURL = off.toDataURL('image/jpeg', 0.85);
+
+      const id = uid();
+      const entry = {
+        id, comment:'', img:dataURL, natW:w, natH:h,
+        annotations:[], tool:'select', selected:-1, color:COLORS[0],
+        lw: LINE_WIDTHS[1], lineType: 'arrow-one', labelFontSize: FONT_SIZES[1], labelShowLeader: true,
+        history: [], future: [], _imgCache: {}
+      };
+      entries[id] = entry;
+      state.order.push(id);
+      const cacheImg = new Image();
+      cacheImg.src = dataURL;
+      imgCache[id] = cacheImg;
+      await new Promise(res=>{ cacheImg.onload = res; });
+    }catch(err){ console.warn(err); }
+  }
+  saveMetaDebounced();
+  state.order.forEach(id=>saveEntryDebounced(id));
+  renderAll();
+  showToast(files.length+'枚の写真を追加しました');
+}
+
+/* ============================================================
+   Undo / Redo
+============================================================ */
+function snapshotBefore(entry){
+  entry.history.push(JSON.parse(JSON.stringify(entry.annotations)));
+  if(entry.history.length > 50) entry.history.shift();
+  entry.future = [];
+}
+function doUndo(entry){
+  if(!entry.history.length) return false;
+  entry.future.push(JSON.parse(JSON.stringify(entry.annotations)));
+  entry.annotations = entry.history.pop();
+  entry.selected = -1;
+  return true;
+}
+function doRedo(entry){
+  if(!entry.future.length) return false;
+  entry.history.push(JSON.parse(JSON.stringify(entry.annotations)));
+  entry.annotations = entry.future.pop();
+  entry.selected = -1;
+  return true;
+}
+
+/* ============================================================
+   描画エンジン（キャンバス上への注記）
+============================================================ */
+function drawHeadAt(ctx, x, y, angle, lw, color){
+  const head = 9 + lw*1.8;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+  ctx.lineTo(x-head*Math.cos(angle-Math.PI/7), y-head*Math.sin(angle-Math.PI/7));
+  ctx.lineTo(x-head*Math.cos(angle+Math.PI/7), y-head*Math.sin(angle+Math.PI/7));
+  ctx.closePath(); ctx.fill();
+}
+
+function drawWavyLine(ctx, x1, y1, x2, y2, lw, color){
+  const dx = x2-x1, dy = y2-y1;
+  const len = Math.hypot(dx,dy);
+  if(len < 1){ return; }
+  const ux = dx/len, uy = dy/len;
+  const px = -uy, py = ux; // perpendicular unit vector
+  const amp = Math.max(5, lw*1.4);
+  const wavelength = Math.max(14, lw*4);
+  const steps = Math.max(2, Math.round(len / (wavelength/2)));
+  ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath();
+  ctx.moveTo(x1,y1);
+  for(let i=1;i<=steps;i++){
+    const t = i/steps;
+    const along = len*t;
+    const offset = Math.sin(t*Math.PI*(len/wavelength)*2) * amp;
+    const x = x1 + ux*along + px*offset;
+    const y = y1 + uy*along + py*offset;
+    ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+
+function drawLine(ctx, a){
+  const lw = a.lw || 4;
+  ctx.strokeStyle = a.color; ctx.fillStyle = a.color; ctx.lineWidth = lw; ctx.lineCap = 'round';
+  if(a.style === 'wavy'){
+    drawWavyLine(ctx, a.x1, a.y1, a.x2, a.y2, lw, a.color);
+    return;
+  }
+  ctx.beginPath(); ctx.moveTo(a.x1,a.y1); ctx.lineTo(a.x2,a.y2); ctx.stroke();
+  if(a.style === 'arrow-one' || a.style === 'arrow-two'){
+    const angleEnd = Math.atan2(a.y2-a.y1, a.x2-a.x1);
+    drawHeadAt(ctx, a.x2, a.y2, angleEnd, lw, a.color);
+  }
+  if(a.style === 'arrow-two'){
+    const angleStart = Math.atan2(a.y1-a.y2, a.x1-a.x2);
+    drawHeadAt(ctx, a.x1, a.y1, angleStart, lw, a.color);
+  }
+}
+
+function calloutBox(ctx, a){
+  const fs = a.fontSize || 22;
+  ctx.font = `600 ${fs}px "Noto Sans JP", sans-serif`;
+  const lines = (a.text||'').split('\n');
+  let maxW = 10;
+  lines.forEach(l=>{ maxW = Math.max(maxW, ctx.measureText(l).width); });
+  const padX = Math.round(fs*0.55), padY = Math.round(fs*0.4), lineH = Math.round(fs*1.25);
+  const boxW = (a.boxW && a.boxW > maxW+padX*2) ? a.boxW : maxW + padX*2;
+  const boxH = lines.length*lineH + padY*2;
+  return {x:a.bx, y:a.by, w:boxW, h:boxH, lines, lineH, padX, padY, fontSize:fs};
+}
+
+function computeImageDraw(img, frame, a){
+  // 画像の実寸・位置(imgAbsX/Y/W/H)は表示域(枠)から独立して保持する。
+  // これにより「トリミング調整」中に枠(表示域)だけをリサイズしても、
+  // 画像自体の大きさ・位置は変わらない（Excelのトリミングと同様の挙動）。
+  if(a.imgAbsW == null){
+    const targetRatio = frame.w/frame.h;
+    const srcRatio = img.naturalWidth/img.naturalHeight;
+    if(a.imgScale!=null || a.imgOffsetX!=null || a.imgOffsetY!=null){
+      // 旧データ形式からの移行: 従来の計算式で見た目を再現し、絶対値に固定する
+      const legacyBase = (srcRatio > targetRatio) ? frame.h/img.naturalHeight : frame.w/img.naturalWidth;
+      const legacyZoom = Math.max(1, a.imgScale || 1);
+      const legacyScale = legacyBase * legacyZoom;
+      a.imgBaseW = img.naturalWidth * legacyBase;
+      a.imgBaseH = img.naturalHeight * legacyBase;
+      a.imgZoom = legacyZoom;
+      a.imgAbsW = img.naturalWidth * legacyScale;
+      a.imgAbsH = img.naturalHeight * legacyScale;
+      const cx = frame.x + frame.w/2 + (a.imgOffsetX||0);
+      const cy = frame.y + frame.h/2 + (a.imgOffsetY||0);
+      a.imgAbsX = cx - a.imgAbsW/2;
+      a.imgAbsY = cy - a.imgAbsH/2;
+      delete a.imgScale; delete a.imgOffsetX; delete a.imgOffsetY;
+    } else {
+      // 新規作成: 枠にカバーフィットさせた状態を初期値とする
+      const baseScale = (srcRatio > targetRatio) ? frame.h/img.naturalHeight : frame.w/img.naturalWidth;
+      a.imgBaseW = img.naturalWidth * baseScale;
+      a.imgBaseH = img.naturalHeight * baseScale;
+      a.imgZoom = a.imgZoom || 1;
+      a.imgAbsW = a.imgBaseW * a.imgZoom;
+      a.imgAbsH = a.imgBaseH * a.imgZoom;
+      a.imgAbsX = frame.x + frame.w/2 - a.imgAbsW/2;
+      a.imgAbsY = frame.y + frame.h/2 - a.imgAbsH/2;
+    }
+  }
+  return { drawX: a.imgAbsX, drawY: a.imgAbsY, drawW: a.imgAbsW, drawH: a.imgAbsH };
+}
+
+function drawAnnotation(ctx, a, entry){
+  const lw = a.lw || 4;
+  ctx.lineWidth = lw;
+  ctx.strokeStyle = a.color; ctx.fillStyle = a.color;
+  if(a.type==='ellipse'){
+    ctx.beginPath();
+    ctx.ellipse(a.x+a.w/2, a.y+a.h/2, Math.max(Math.abs(a.w)/2,1), Math.max(Math.abs(a.h)/2,1), 0, 0, Math.PI*2);
+    ctx.stroke();
+  } else if(a.type==='rect'){
+    ctx.strokeRect(a.x, a.y, a.w, a.h);
+  } else if(a.type==='line'){
+    drawLine(ctx, a);
+  } else if(a.type==='image'){
+    const bx = Math.min(a.x,a.x+a.w), by = Math.min(a.y,a.y+a.h);
+    const bw = Math.abs(a.w), bh = Math.abs(a.h);
+    const img = entry && entry._imgCache && entry._imgCache[a._id];
+    const isCropping = entry && entry.cropping && entry.selected>=0 && entry.annotations[entry.selected]===a;
+    if(img && img.complete && img.naturalWidth){
+      const d = computeImageDraw(img, {x:bx,y:by,w:bw,h:bh}, a);
+      if(isCropping){
+        // 枠の外側にはみ出す部分も薄く表示（Excelのトリミングのような見た目）
+        ctx.save();
+        ctx.globalAlpha = 0.32;
+        ctx.drawImage(img, d.drawX, d.drawY, d.drawW, d.drawH);
+        ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.rect(bx,by,bw,bh); ctx.clip();
+        ctx.drawImage(img, d.drawX, d.drawY, d.drawW, d.drawH);
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(bx,by,bw,bh); ctx.clip();
+        ctx.drawImage(img, d.drawX, d.drawY, d.drawW, d.drawH);
+        ctx.restore();
+      }
+    } else {
+      ctx.fillStyle = '#33383f'; ctx.fillRect(bx,by,bw,bh);
+      ctx.fillStyle = '#cfd6dc'; ctx.font = '600 16px "Noto Sans JP", sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('読み込み中…', bx+bw/2, by+bh/2);
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    }
+    ctx.strokeStyle = isCropping ? '#00C2FF' : a.color; ctx.lineWidth = lw;
+    ctx.strokeRect(bx+lw/2, by+lw/2, Math.max(bw-lw,0), Math.max(bh-lw,0));
+  } else if(a.type==='callout'){
+    const b = calloutBox(ctx, a);
+    const borderColor = a.color || '#111417';
+    const borderW = a.lw || 2.5;
+    // leader line（引き出し線）: 不要な場合はオフにできる
+    if(a.showLeader !== false){
+      const cx = b.x+b.w/2, cy = b.y+b.h/2;
+      let ex, ey;
+      if(Math.abs(a.ax-cx) > Math.abs(a.ay-cy)){
+        ex = a.ax > cx ? b.x+b.w : b.x; ey = cy;
+      } else {
+        ey = a.ay > cy ? b.y+b.h : b.y; ex = cx;
+      }
+      ctx.strokeStyle = borderColor; ctx.lineWidth = borderW;
+      ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(a.ax,a.ay); ctx.stroke();
+      ctx.beginPath(); ctx.arc(a.ax,a.ay,4,0,Math.PI*2); ctx.fillStyle=borderColor; ctx.fill();
+    }
+    // box
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = borderColor; ctx.lineWidth = borderW;
+    ctx.fillRect(b.x,b.y,b.w,b.h); ctx.strokeRect(b.x,b.y,b.w,b.h);
+    ctx.fillStyle = '#111417'; ctx.font = `600 ${b.fontSize}px "Noto Sans JP", sans-serif`;
+    ctx.textBaseline = 'top';
+    b.lines.forEach((l,i)=> ctx.fillText(l, b.x+b.padX, b.y+b.padY+i*b.lineH));
+  }
+}
+
+function annotationBounds(a, ctx){
+  if(a.type==='ellipse' || a.type==='rect' || a.type==='image'){
+    return {x:Math.min(a.x,a.x+a.w), y:Math.min(a.y,a.y+a.h), w:Math.abs(a.w), h:Math.abs(a.h)};
+  } else if(a.type==='line'){
+    const pad = (a.lw||4) + 8;
+    return {x:Math.min(a.x1,a.x2)-pad, y:Math.min(a.y1,a.y2)-pad, w:Math.abs(a.x2-a.x1)+pad*2, h:Math.abs(a.y2-a.y1)+pad*2};
+  } else if(a.type==='callout'){
+    const b = calloutBox(ctx, a);
+    return {x:b.x, y:b.y, w:b.w, h:b.h};
+  }
+  return {x:0,y:0,w:0,h:0};
+}
+
+function hitTest(entry, ctx, px, py){
+  for(let i=entry.annotations.length-1; i>=0; i--){
+    const a = entry.annotations[i];
+    if(a.type==='line'){
+      const d = distToSegment(px,py,a.x1,a.y1,a.x2,a.y2);
+      if(d < 14 + (a.lw||4)) return i;
+      continue;
+    }
+    const b = annotationBounds(a, ctx);
+    if(px>=b.x-4 && px<=b.x+b.w+4 && py>=b.y-4 && py<=b.y+b.h+4) return i;
+  }
+  return -1;
+}
+function distToSegment(px,py,x1,y1,x2,y2){
+  const A=px-x1,B=py-y1,C=x2-x1,D=y2-y1;
+  const dot=A*C+B*D, lenSq=C*C+D*D;
+  let t = lenSq!==0 ? dot/lenSq : -1;
+  t = Math.max(0,Math.min(1,t));
+  const xx=x1+t*C, yy=y1+t*D;
+  return Math.hypot(px-xx,py-yy);
+}
+
+function getHandles(a, ctx){
+  if(a.type==='rect' || a.type==='ellipse' || a.type==='image'){
+    return {
+      tl:{x:a.x, y:a.y}, tr:{x:a.x+a.w, y:a.y},
+      bl:{x:a.x, y:a.y+a.h}, br:{x:a.x+a.w, y:a.y+a.h}
+    };
+  } else if(a.type==='line'){
+    return { p1:{x:a.x1,y:a.y1}, p2:{x:a.x2,y:a.y2} };
+  } else if(a.type==='callout'){
+    const box = ctx ? calloutBox(ctx, a) : {x:a.bx, y:a.by, w:a.boxW||140, h:40};
+    const h = { resize:{x:box.x+box.w, y:box.y+box.h} };
+    if(a.showLeader !== false) h.anchor = {x:a.ax, y:a.ay};
+    return h;
+  }
+  return {};
+}
+function hitHandle(a, px, py, r, ctx){
+  const handles = getHandles(a, ctx);
+  for(const k of Object.keys(handles)){
+    const pt = handles[k];
+    if(Math.hypot(px-pt.x, py-pt.y) <= r) return k;
+  }
+  return null;
+}
+
+function renderCanvas(entry, canvas){
+  const ctx = canvas.getContext('2d');
+  const img = imgCache[entry.id];
+  canvas.width = entry.natW; canvas.height = entry.natH;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(img && img.complete) ctx.drawImage(img,0,0,entry.natW,entry.natH);
+  entry.annotations.forEach((a,i)=>{
+    if(i===entry._editingLabelIndex) return; // 編集中のラベルはテキストエリアと二重に見えないよう非表示
+    drawAnnotation(ctx,a,entry);
+    if(i===entry.selected){
+      const b = annotationBounds(a, ctx);
+      ctx.save();
+      ctx.setLineDash([6,4]); ctx.strokeStyle = '#00C2FF'; ctx.lineWidth = 2.5;
+      ctx.strokeRect(b.x-6, b.y-6, b.w+12, b.h+12);
+      ctx.restore();
+      const handles = getHandles(a, ctx);
+      ctx.fillStyle = '#00C2FF';
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+      Object.values(handles).forEach(pt=>{
+        ctx.fillRect(pt.x-7, pt.y-7, 14, 14);
+        ctx.strokeRect(pt.x-7, pt.y-7, 14, 14);
+      });
+    }
+  });
+  if(entry._preview){ drawAnnotation(ctx, entry._preview, entry); }
+}
+
+/* ============================================================
+   キャンバス操作（ポインタイベント）
+============================================================ */
+function getImgPos(e, canvas){
+  const r = canvas.getBoundingClientRect();
+  const cx = (e.touches ? e.touches[0].clientX : e.clientX);
+  const cy = (e.touches ? e.touches[0].clientY : e.clientY);
+  return { x:(cx-r.left) * (canvas.width/r.width), y:(cy-r.top) * (canvas.height/r.height) };
+}
+
+function attachCanvasEvents(entry, canvas, wrap, onSelectionChange){
+  let dragging = false, dragMode = null, start = null, dragOffset=null, resizeHandle=null;
+
+  canvas.addEventListener('pointerdown', (e)=>{
+    const pos = getImgPos(e, canvas);
+    const ctx = canvas.getContext('2d');
+
+    if(entry.tool === 'text'){
+      e.preventDefault();
+      openCalloutInput(entry, canvas, wrap, pos, onSelectionChange);
+      return;
+    }
+
+    canvas.setPointerCapture(e.pointerId);
+
+    if(entry.tool === 'select'){
+      const HANDLE_R = 16;
+      if(entry.selected>=0){
+        const sel = entry.annotations[entry.selected];
+        // 四隅のハンドルを先に判定する。トリミング調整中はここが「表示域(枠)」の
+        // リサイズになり、通常時は画像全体（枠＋画像）の拡縮になる。
+        const h = hitHandle(sel, pos.x, pos.y, HANDLE_R, ctx);
+        if(h){
+          dragging = true; dragMode = 'resize'; start = pos; resizeHandle = h;
+          snapshotBefore(entry);
+          dragOffset = JSON.parse(JSON.stringify(sel));
+          renderCanvas(entry, canvas);
+          return;
+        }
+        // ハンドル以外の場所をドラッグした場合、トリミング調整中は画像の位置調整（パン）
+        if(entry.cropping && sel.type==='image'){
+          const b = annotationBounds(sel, ctx);
+          if(pos.x>=b.x && pos.x<=b.x+b.w && pos.y>=b.y && pos.y<=b.y+b.h){
+            dragging = true; dragMode='crop'; start = pos;
+            snapshotBefore(entry);
+            dragOffset = { imgAbsX: sel.imgAbsX, imgAbsY: sel.imgAbsY };
+            return;
+          }
+        }
+      }
+      const idx = hitTest(entry, ctx, pos.x, pos.y);
+      entry.selected = idx;
+      if(idx>=0){
+        dragging = true; dragMode='move'; start = pos;
+        snapshotBefore(entry);
+        dragOffset = JSON.parse(JSON.stringify(entry.annotations[idx]));
+      }
+      renderCanvas(entry, canvas);
+      if(onSelectionChange) onSelectionChange();
+      return;
+    }
+
+    dragging = true; dragMode = 'draw'; start = pos;
+    if(entry.tool==='ellipse'){
+      entry._preview = {type:'ellipse', x:pos.x, y:pos.y, w:0, h:0, color:entry.color, lw:entry.lw};
+    } else if(entry.tool==='rect'){
+      entry._preview = {type:'rect', x:pos.x, y:pos.y, w:0, h:0, color:entry.color, lw:entry.lw};
+    } else if(entry.tool==='line'){
+      entry._preview = {type:'line', style:entry.lineType, x1:pos.x, y1:pos.y, x2:pos.x, y2:pos.y, color:entry.color, lw:entry.lw};
+    }
+  });
+
+  canvas.addEventListener('pointermove', (e)=>{
+    if(!dragging) return;
+    const pos = getImgPos(e, canvas);
+    if(dragMode==='move' && entry.selected>=0){
+      const dx = pos.x-start.x, dy = pos.y-start.y;
+      const a = entry.annotations[entry.selected];
+      const o = dragOffset;
+      if(a.type==='ellipse' || a.type==='rect' || a.type==='image'){
+        a.x=o.x+dx; a.y=o.y+dy;
+        if(a.type==='image' && a.imgAbsX!=null){
+          // 表示域(枠)全体の移動なので、中の画像も同じ分だけ一緒に動かす
+          a.imgAbsX = o.imgAbsX + dx;
+          a.imgAbsY = o.imgAbsY + dy;
+        }
+      }
+      else if(a.type==='line'){ a.x1=o.x1+dx; a.y1=o.y1+dy; a.x2=o.x2+dx; a.y2=o.y2+dy; }
+      else if(a.type==='callout'){ a.bx=o.bx+dx; a.by=o.by+dy; }
+      renderCanvas(entry, canvas);
+    } else if(dragMode==='resize' && entry.selected>=0){
+      const a = entry.annotations[entry.selected];
+      const o = dragOffset;
+      if(a.type==='rect' || a.type==='ellipse' || a.type==='image'){
+        let fixedX, fixedY;
+        if(resizeHandle==='tl'){ fixedX=o.x+o.w; fixedY=o.y+o.h; }
+        else if(resizeHandle==='tr'){ fixedX=o.x; fixedY=o.y+o.h; }
+        else if(resizeHandle==='bl'){ fixedX=o.x+o.w; fixedY=o.y; }
+        else { fixedX=o.x; fixedY=o.y; } // br
+        let rawW = pos.x - fixedX;
+        let rawH = pos.y - fixedY;
+        if(e.shiftKey){
+          const aspect = Math.abs(o.w) / Math.max(Math.abs(o.h), 0.0001);
+          if(Math.abs(rawW) > Math.abs(rawH)*aspect){
+            rawH = (rawH<0 ? -1 : 1) * Math.abs(rawW)/aspect;
+          } else {
+            rawW = (rawW<0 ? -1 : 1) * Math.abs(rawH)*aspect;
+          }
+        }
+        a.x = fixedX; a.y = fixedY; a.w = rawW; a.h = rawH;
+        if(a.type==='image' && a.imgAbsW!=null){
+          if(entry.cropping){
+            // トリミング調整中: 表示域(枠)だけを変更し、中の画像の大きさ・位置はそのまま保つ
+            // → Excelのトリミングと同様に、枠を小さくすれば見える範囲が狭くなる
+          } else {
+            // 通常時: 枠のリサイズに合わせて画像も比例して拡縮・追従させる
+            const oldB = {x:Math.min(o.x,o.x+o.w), y:Math.min(o.y,o.y+o.h), w:Math.abs(o.w), h:Math.abs(o.h)};
+            const newB = {x:Math.min(a.x,a.x+a.w), y:Math.min(a.y,a.y+a.h), w:Math.abs(a.w), h:Math.abs(a.h)};
+            const scaleX = oldB.w>0.0001 ? newB.w/oldB.w : 1;
+            const scaleY = oldB.h>0.0001 ? newB.h/oldB.h : 1;
+            a.imgAbsX = newB.x + (o.imgAbsX - oldB.x)*scaleX;
+            a.imgAbsY = newB.y + (o.imgAbsY - oldB.y)*scaleY;
+            a.imgAbsW = o.imgAbsW * scaleX;
+            a.imgAbsH = o.imgAbsH * scaleY;
+            a.imgBaseW = (o.imgBaseW||o.imgAbsW) * scaleX;
+            a.imgBaseH = (o.imgBaseH||o.imgAbsH) * scaleY;
+          }
+        }
+      } else if(a.type==='line'){
+        if(resizeHandle==='p1'){ a.x1=pos.x; a.y1=pos.y; }
+        else if(resizeHandle==='p2'){ a.x2=pos.x; a.y2=pos.y; }
+      } else if(a.type==='callout'){
+        if(resizeHandle==='anchor'){ a.ax=pos.x; a.ay=pos.y; }
+        else if(resizeHandle==='resize'){ a.boxW = Math.max(50, pos.x - a.bx); }
+      }
+      renderCanvas(entry, canvas);
+    } else if(dragMode==='crop' && entry.selected>=0){
+      const a = entry.annotations[entry.selected];
+      const o = dragOffset;
+      a.imgAbsX = (o.imgAbsX||0) + (pos.x-start.x);
+      a.imgAbsY = (o.imgAbsY||0) + (pos.y-start.y);
+      renderCanvas(entry, canvas);
+    } else if(dragMode==='draw'){
+      const p = entry._preview;
+      if(p.type==='ellipse' || p.type==='rect'){ p.w = pos.x-p.x; p.h = pos.y-p.y; }
+      else if(p.type==='line'){ p.x2 = pos.x; p.y2 = pos.y; }
+      renderCanvas(entry, canvas);
+    }
+  });
+
+  function finishDrag(){
+    if(!dragging) return;
+    dragging = false;
+    if(dragMode==='draw' && entry._preview){
+      const p = entry._preview;
+      const tiny = (p.type==='line')
+        ? Math.hypot(p.x2-p.x1,p.y2-p.y1) < 6
+        : Math.abs(p.w) < 6 && Math.abs(p.h) < 6;
+      if(!tiny){
+        snapshotBefore(entry);
+        entry.annotations.push(p);
+      }
+      entry._preview = null;
+      renderCanvas(entry, canvas);
+      if(!tiny){ saveEntryDebounced(entry.id); if(onSelectionChange) onSelectionChange(); }
+    } else if(dragMode==='move' || dragMode==='resize' || dragMode==='crop'){
+      saveEntryDebounced(entry.id);
+    }
+    dragMode = null; resizeHandle = null;
+  }
+  canvas.addEventListener('pointerup', finishDrag);
+  canvas.addEventListener('pointercancel', finishDrag);
+
+  canvas.addEventListener('dblclick', (e)=>{
+    if(entry.tool !== 'select') return;
+    const pos = getImgPos(e, canvas);
+    const ctx = canvas.getContext('2d');
+    const idx = hitTest(entry, ctx, pos.x, pos.y);
+    if(idx>=0 && entry.annotations[idx].type==='callout'){
+      entry.selected = idx;
+      renderCanvas(entry, canvas);
+      openCalloutInput(entry, canvas, wrap, {x:entry.annotations[idx].bx, y:entry.annotations[idx].by}, onSelectionChange, idx);
+    }
+  });
+}
+
+function openCalloutInput(entry, canvas, wrap, pos, onSelectionChange, editIndex){
+  const existing = wrap.querySelector('.callout-input');
+  if(existing) existing.remove();
+  const r = canvas.getBoundingClientRect();
+  const scaleX = r.width/canvas.width, scaleY = r.height/canvas.height;
+  const isEdit = typeof editIndex === 'number';
+  const editingAnn = isEdit ? entry.annotations[editIndex] : null;
+  const ctx = canvas.getContext('2d');
+
+  // 編集中は、実際にキャンバスへ描画される位置・大きさ・色・太さに合わせてテキストエリアを
+  // 重ねて表示する。こうすることで「別の入力ウィンドウが出る」のではなく、ラベルそのものを
+  // 直接編集しているように見えるようにする。
+  const color = isEdit ? (editingAnn.color || entry.color) : entry.color;
+  const lwVal = isEdit ? (editingAnn.lw || entry.lw) : entry.lw;
+  const fontSize = isEdit ? (editingAnn.fontSize || entry.labelFontSize) : entry.labelFontSize;
+  const bx = isEdit ? editingAnn.bx : Math.max(4, pos.x-90);
+  const by = isEdit ? editingAnn.by : Math.max(4, pos.y-70);
+  let boxW = isEdit ? (editingAnn.boxW || null) : null;
+
+  // 編集中、キャンバス側では元のラベルを一旦隠す（二重に見えるのを防ぐ）
+  if(isEdit){ entry._editingLabelIndex = editIndex; renderCanvas(entry, canvas); }
+
+  const input = document.createElement('textarea');
+  input.className = 'callout-input';
+  input.rows = 1;
+  input.style.borderColor = color;
+  input.style.borderWidth = Math.max(1, Math.round(lwVal*scaleX)) + 'px';
+  input.placeholder = 'ラベル文字を入力';
+  input.style.fontSize = Math.max(11, Math.round(fontSize * scaleX)) + 'px';
+  if(isEdit) input.value = editingAnn.text || '';
+
+  function syncBoxToText(){
+    const b = calloutBox(ctx, {bx, by, text: input.value, fontSize, boxW});
+    input.style.left = Math.round(b.x*scaleX) + 'px';
+    input.style.top = Math.round(b.y*scaleY) + 'px';
+    input.style.width = Math.round(b.w*scaleX) + 'px';
+    input.style.height = Math.round(b.h*scaleY) + 'px';
+  }
+  syncBoxToText();
+  input.addEventListener('input', syncBoxToText);
+
+  // キャンバス側のポインター処理と競合してフォーカスが奪われないようにする
+  ['pointerdown','pointerup','mousedown','mouseup','click','touchstart'].forEach(ev=>{
+    input.addEventListener(ev, e=>e.stopPropagation());
+  });
+  wrap.appendChild(input);
+
+  let committed = false;
+  function cleanup(){
+    input.remove();
+    if(isEdit){ entry._editingLabelIndex = -1; }
+  }
+  function commit(){
+    if(committed) return;
+    committed = true;
+    const val = input.value.trim();
+    cleanup();
+    if(isEdit){
+      if(val){
+        snapshotBefore(entry);
+        editingAnn.text = val;
+        editingAnn.boxW = null; // 文字が変わったら自動幅に戻す
+      }
+      renderCanvas(entry, canvas);
+      if(val){ saveEntryDebounced(entry.id); if(onSelectionChange) onSelectionChange(); }
+      return;
+    }
+    if(val){
+      snapshotBefore(entry);
+      entry.annotations.push({
+        type:'callout', ax:pos.x, ay:pos.y,
+        bx, by,
+        text: val, color: entry.color, lw: entry.lw, fontSize: entry.labelFontSize,
+        showLeader: entry.labelShowLeader !== false
+      });
+      renderCanvas(entry, canvas);
+      saveEntryDebounced(entry.id);
+      if(onSelectionChange) onSelectionChange();
+    }
+  }
+  input.addEventListener('keydown', (e)=>{
+    e.stopPropagation();
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); commit(); }
+    if(e.key==='Escape'){ committed = true; cleanup(); renderCanvas(entry, canvas); }
+  });
+  input.addEventListener('blur', commit);
+
+  // 生成直後は同じ操作(pointerdown)由来のフォーカス移動と競合することがあるため、
+  // 少し遅らせて確実にフォーカスを当てる
+  setTimeout(()=>{ input.focus(); input.select && input.select(); }, 0);
+}
+
+/* ============================================================
+   一覧レンダリング
+============================================================ */
+function renderAll(){
+  const list = document.getElementById('entryList');
+  list.innerHTML = '';
+  if(state.order.length===0){
+    // nothing, add-zone acts as empty state
+  }
+  state.order.forEach((id, idx)=>{
+    const entry = entries[id];
+    if(!entry) return;
+    list.appendChild(buildEntryCard(entry, idx));
+  });
+}
+
+function currentStyleTarget(entry){
+  // 選択中の注記があればそれを対象に、なければ既定値(entry)を対象にする
+  return entry.selected>=0 ? entry.annotations[entry.selected] : entry;
+}
+function currentTargetType(entry){
+  return entry.selected>=0 ? entry.annotations[entry.selected].type : entry.tool;
+}
+
+function toolButtons(entry, canvas){
+  const wrap = document.createElement('div');
+  wrap.className = 'toolbar';
+
+  // --- tool row ---
+  const toolRow = document.createElement('div');
+  toolRow.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; align-items:center; width:100%;';
+  const toolDefs = [
+    ['select','選択'], ['ellipse','○ 円'], ['rect','▭ 四角'],
+    ['line','／ 線'], ['text','🏷 ラベル']
+  ];
+  const toolBtns = {};
+  toolDefs.forEach(([key,label])=>{
+    const b = document.createElement('button');
+    b.type='button'; b.className = 'tool-btn';
+    b.textContent = label;
+    b.onclick = ()=>{ entry.tool = key; entry.selected=-1; renderCanvas(entry, canvas); refresh(); };
+    toolBtns[key] = b;
+    toolRow.appendChild(b);
+  });
+  const imgToolBtn = document.createElement('button');
+  imgToolBtn.type='button'; imgToolBtn.className='tool-btn'; imgToolBtn.textContent='🖼 画像を重ねる';
+  imgToolBtn.onclick = ()=>{
+    const inp = document.createElement('input');
+    inp.type='file'; inp.accept='image/*';
+    inp.onchange = async ()=>{
+      const file = inp.files[0];
+      if(!file) return;
+      try{
+        const srcImg = await loadImageFile(file);
+        const MAXD = 700;
+        let iw = srcImg.naturalWidth, ih = srcImg.naturalHeight;
+        const scale = Math.min(1, MAXD/Math.max(iw,ih));
+        iw = Math.round(iw*scale); ih = Math.round(ih*scale);
+        const off = document.createElement('canvas');
+        off.width = iw; off.height = ih;
+        off.getContext('2d').drawImage(srcImg, 0, 0, iw, ih);
+        const dataURL = off.toDataURL('image/jpeg', 0.85);
+
+        const cacheImg = new Image();
+        await new Promise(res=>{ cacheImg.onload=res; cacheImg.onerror=res; cacheImg.src=dataURL; });
+
+        const boxW = Math.round(entry.natW*0.34);
+        const boxH = Math.round(boxW * ih/iw);
+        const bx = Math.round((entry.natW-boxW)/2), by = Math.round((entry.natH-boxH)/2);
+        const imgAnnId = 'img'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+        entry._imgCache = entry._imgCache || {};
+        entry._imgCache[imgAnnId] = cacheImg;
+
+        snapshotBefore(entry);
+        entry.annotations.push({
+          type:'image', x:bx, y:by, w:boxW, h:boxH,
+          imgZoom:1, imgBaseW:boxW, imgBaseH:boxH,
+          imgAbsW:boxW, imgAbsH:boxH, imgAbsX:bx, imgAbsY:by,
+          src:dataURL, color:entry.color, lw:entry.lw, _id:imgAnnId
+        });
+        entry.selected = entry.annotations.length-1;
+        entry.tool = 'select';
+        saveEntryDebounced(entry.id);
+        renderCanvas(entry, canvas);
+        refresh();
+      }catch(err){ console.warn(err); showToast('画像の読み込みに失敗しました'); }
+    };
+    inp.click();
+  };
+  toolRow.appendChild(imgToolBtn);
+  const undoBtn = document.createElement('button');
+  undoBtn.type='button'; undoBtn.className='tool-btn'; undoBtn.textContent='⤺ 元に戻す';
+  undoBtn.onclick = ()=>{ if(doUndo(entry)){ renderCanvas(entry,canvas); saveEntryDebounced(entry.id); refresh(); } };
+  const redoBtn = document.createElement('button');
+  redoBtn.type='button'; redoBtn.className='tool-btn'; redoBtn.textContent='⤻ やり直す';
+  redoBtn.onclick = ()=>{ if(doRedo(entry)){ renderCanvas(entry,canvas); saveEntryDebounced(entry.id); refresh(); } };
+  toolRow.appendChild(undoBtn); toolRow.appendChild(redoBtn);
+  const delSelBtn = document.createElement('button');
+  delSelBtn.type='button'; delSelBtn.className='tool-btn'; delSelBtn.textContent='選択削除';
+  delSelBtn.onclick = ()=>{
+    if(entry.selected>=0){
+      snapshotBefore(entry);
+      entry.annotations.splice(entry.selected,1); entry.selected=-1;
+      renderCanvas(entry,canvas); saveEntryDebounced(entry.id); refresh();
+    }
+  };
+  toolRow.appendChild(delSelBtn);
+
+  // --- 重なり順(前面/背面)の変更 ---
+  function reorderSelected(mode){
+    const i = entry.selected;
+    if(i<0) return;
+    const n = entry.annotations.length;
+    let j;
+    if(mode==='front') j = n-1;
+    else if(mode==='back') j = 0;
+    else if(mode==='forward') j = Math.min(n-1, i+1);
+    else j = Math.max(0, i-1); // backward
+    if(j===i) return;
+    snapshotBefore(entry);
+    const [a] = entry.annotations.splice(i,1);
+    entry.annotations.splice(j,0,a);
+    entry.selected = j;
+    renderCanvas(entry, canvas);
+    saveEntryDebounced(entry.id);
+    refresh();
+  }
+  const bringFrontBtn = document.createElement('button');
+  bringFrontBtn.type='button'; bringFrontBtn.className='tool-btn'; bringFrontBtn.textContent='⬆⬆ 最前面へ';
+  bringFrontBtn.onclick = ()=>reorderSelected('front');
+  const bringFwdBtn = document.createElement('button');
+  bringFwdBtn.type='button'; bringFwdBtn.className='tool-btn'; bringFwdBtn.textContent='⬆ 前面へ';
+  bringFwdBtn.onclick = ()=>reorderSelected('forward');
+  const sendBackBtn = document.createElement('button');
+  sendBackBtn.type='button'; sendBackBtn.className='tool-btn'; sendBackBtn.textContent='⬇ 背面へ';
+  sendBackBtn.onclick = ()=>reorderSelected('backward');
+  const sendBackAllBtn = document.createElement('button');
+  sendBackAllBtn.type='button'; sendBackAllBtn.className='tool-btn'; sendBackAllBtn.textContent='⬇⬇ 最背面へ';
+  sendBackAllBtn.onclick = ()=>reorderSelected('back');
+  [bringFrontBtn, bringFwdBtn, sendBackBtn, sendBackAllBtn].forEach(b=> toolRow.appendChild(b));
+
+  wrap.appendChild(toolRow);
+
+  // --- crop row (トリミング調整: 選択中が画像の時だけ表示) ---
+  const cropRow = document.createElement('div');
+  cropRow.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; align-items:center; width:100%;';
+  const cropToggleBtn = document.createElement('button');
+  cropToggleBtn.type='button'; cropToggleBtn.className='tool-btn';
+  cropToggleBtn.textContent = '✂ トリミング調整';
+  cropToggleBtn.onclick = ()=>{
+    entry.cropping = !entry.cropping;
+    renderCanvas(entry, canvas);
+    refresh();
+  };
+  cropRow.appendChild(cropToggleBtn);
+  const zoomOutBtn = document.createElement('button');
+  zoomOutBtn.type='button'; zoomOutBtn.className='tool-btn'; zoomOutBtn.textContent='－ 縮小';
+  const zoomInBtn = document.createElement('button');
+  zoomInBtn.type='button'; zoomInBtn.className='tool-btn'; zoomInBtn.textContent='＋ 拡大';
+  function adjustZoom(delta){
+    if(entry.selected<0) return;
+    const sel = entry.annotations[entry.selected];
+    if(!sel || sel.type!=='image' || sel.imgAbsW==null) return;
+    snapshotBefore(entry);
+    const oldZoom = sel.imgZoom||1;
+    const newZoom = Math.max(1, Math.min(4, oldZoom + delta));
+    if(newZoom !== oldZoom){
+      // 現在の中心位置を保ったまま、画像自体の実寸を拡縮する（枠は変えない）
+      const cx = sel.imgAbsX + sel.imgAbsW/2, cy = sel.imgAbsY + sel.imgAbsH/2;
+      const baseW = sel.imgBaseW || sel.imgAbsW, baseH = sel.imgBaseH || sel.imgAbsH;
+      const newW = baseW*newZoom, newH = baseH*newZoom;
+      sel.imgAbsX = cx - newW/2; sel.imgAbsY = cy - newH/2;
+      sel.imgAbsW = newW; sel.imgAbsH = newH;
+      sel.imgZoom = newZoom;
+    }
+    saveEntryDebounced(entry.id);
+    renderCanvas(entry, canvas);
+  }
+  zoomOutBtn.onclick = ()=>adjustZoom(-0.15);
+  zoomInBtn.onclick = ()=>adjustZoom(0.15);
+  cropRow.appendChild(zoomOutBtn); cropRow.appendChild(zoomInBtn);
+  const cropDoneBtn = document.createElement('button');
+  cropDoneBtn.type='button'; cropDoneBtn.className='tool-btn'; cropDoneBtn.textContent='完了';
+  cropDoneBtn.onclick = ()=>{ entry.cropping=false; renderCanvas(entry,canvas); refresh(); };
+  cropRow.appendChild(cropDoneBtn);
+  const cropHint = document.createElement('span');
+  cropHint.textContent = '写真の中をドラッグ＝位置調整／四隅のハンドルをドラッグ＝表示域(トリミング枠)の変更';
+  cropHint.style.cssText = 'font-size:11px; color:#9AA5B0;';
+  cropRow.appendChild(cropHint);
+  wrap.appendChild(cropRow);
+
+  // --- line-type row (線の種類) ---
+  const lineTypeRow = document.createElement('div');
+  lineTypeRow.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; align-items:center; width:100%;';
+  const ltLabel = document.createElement('span');
+  ltLabel.textContent = '線の種類:'; ltLabel.style.cssText='font-size:11px; color:#9AA5B0;';
+  lineTypeRow.appendChild(ltLabel);
+  const lineTypeBtns = {};
+  LINE_TYPES.forEach(([key,label])=>{
+    const b = document.createElement('button');
+    b.type='button'; b.className='tool-btn'; b.textContent = label;
+    b.onclick = ()=>{
+      const t = currentStyleTarget(entry);
+      if(entry.selected>=0) snapshotBefore(entry);
+      t.style = key;
+      if(entry.selected>=0){ entry.annotations[entry.selected].style = key; }
+      else { entry.lineType = key; }
+      renderCanvas(entry, canvas);
+      if(entry.selected>=0) saveEntryDebounced(entry.id);
+      refresh();
+    };
+    lineTypeBtns[key] = b;
+    lineTypeRow.appendChild(b);
+  });
+  wrap.appendChild(lineTypeRow);
+
+  // --- width row (線の太さ) + color ---
+  const styleRow = document.createElement('div');
+  styleRow.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap; align-items:center; width:100%;';
+  const wLabel = document.createElement('span');
+  wLabel.textContent = '太さ:'; wLabel.style.cssText='font-size:11px; color:#9AA5B0;';
+  styleRow.appendChild(wLabel);
+  const widthBtns = {};
+  LINE_WIDTHS.forEach(wpx=>{
+    const b = document.createElement('button');
+    b.type='button'; b.className='tool-btn';
+    b.innerHTML = `<span style="display:inline-block;width:22px;height:${wpx}px;background:currentColor;border-radius:2px;"></span>`;
+    b.onclick = ()=>{
+      if(entry.selected>=0){
+        snapshotBefore(entry);
+        entry.annotations[entry.selected].lw = wpx;
+        saveEntryDebounced(entry.id);
+      } else {
+        entry.lw = wpx;
+      }
+      renderCanvas(entry, canvas);
+      refresh();
+    };
+    widthBtns[wpx] = b;
+    styleRow.appendChild(b);
+  });
+  const sep = document.createElement('div'); sep.className='sep'; styleRow.appendChild(sep);
+  const swatches = {};
+  COLORS.forEach(c=>{
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.style.background = c;
+    sw.title = '色を選択';
+    sw.onclick = ()=>{
+      if(entry.selected>=0){
+        snapshotBefore(entry);
+        entry.annotations[entry.selected].color = c;
+        saveEntryDebounced(entry.id);
+      } else {
+        entry.color = c;
+      }
+      renderCanvas(entry, canvas);
+      refresh();
+    };
+    swatches[c] = sw;
+    styleRow.appendChild(sw);
+  });
+  const colorPicker = document.createElement('input');
+  colorPicker.type = 'color';
+  colorPicker.title = '色を自由に選択';
+  colorPicker.style.cssText = 'width:26px; height:26px; padding:0; border:1px solid #3A434F; border-radius:6px; background:none; cursor:pointer;';
+  colorPicker.oninput = ()=>{
+    const c = colorPicker.value;
+    if(entry.selected>=0){
+      snapshotBefore(entry);
+      entry.annotations[entry.selected].color = c;
+      saveEntryDebounced(entry.id);
+    } else {
+      entry.color = c;
+    }
+    renderCanvas(entry, canvas);
+    refresh();
+  };
+  styleRow.appendChild(colorPicker);
+  wrap.appendChild(styleRow);
+
+  // --- label font size row (ラベルの文字サイズ) ---
+  const fontRow = document.createElement('div');
+  fontRow.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; align-items:center; width:100%;';
+  const fLabel = document.createElement('span');
+  fLabel.textContent = '文字サイズ:'; fLabel.style.cssText='font-size:11px; color:#9AA5B0;';
+  fontRow.appendChild(fLabel);
+  const fontBtns = {};
+  const FONT_LABELS = {16:'小', 22:'中', 30:'大'};
+  FONT_SIZES.forEach(fsz=>{
+    const b = document.createElement('button');
+    b.type='button'; b.className='tool-btn'; b.textContent = FONT_LABELS[fsz] || String(fsz);
+    b.onclick = ()=>{
+      if(entry.selected>=0 && entry.annotations[entry.selected].type==='callout'){
+        snapshotBefore(entry);
+        entry.annotations[entry.selected].fontSize = fsz;
+        entry.annotations[entry.selected].boxW = null; // 文字サイズ変更時は自動幅に戻す
+        saveEntryDebounced(entry.id);
+      } else {
+        entry.labelFontSize = fsz;
+      }
+      renderCanvas(entry, canvas);
+      refresh();
+    };
+    fontBtns[fsz] = b;
+    fontRow.appendChild(b);
+  });
+  const editTextBtn = document.createElement('button');
+  editTextBtn.type='button'; editTextBtn.className='tool-btn'; editTextBtn.textContent='✏ 文字を編集';
+  editTextBtn.onclick = ()=>{
+    if(entry.selected<0) return;
+    const sel = entry.annotations[entry.selected];
+    if(!sel || sel.type!=='callout') return;
+    openCalloutInput(entry, canvas, wrap, {x:sel.bx, y:sel.by}, refresh, entry.selected);
+  };
+  fontRow.appendChild(editTextBtn);
+  const leaderToggleBtn = document.createElement('button');
+  leaderToggleBtn.type='button'; leaderToggleBtn.className='tool-btn'; leaderToggleBtn.textContent='→ 引き出し線';
+  leaderToggleBtn.title = '吹き出しの引き出し線・矢印の表示/非表示を切り替えます';
+  leaderToggleBtn.onclick = ()=>{
+    if(entry.selected>=0 && entry.annotations[entry.selected].type==='callout'){
+      const sel = entry.annotations[entry.selected];
+      snapshotBefore(entry);
+      sel.showLeader = !(sel.showLeader !== false);
+      saveEntryDebounced(entry.id);
+    } else {
+      entry.labelShowLeader = !(entry.labelShowLeader !== false);
+    }
+    renderCanvas(entry, canvas);
+    refresh();
+  };
+  fontRow.appendChild(leaderToggleBtn);
+  wrap.appendChild(fontRow);
+
+  function refresh(){
+    // tool buttons active state
+    Object.entries(toolBtns).forEach(([k,b])=> b.classList.toggle('active', entry.tool===k && entry.selected<0));
+    undoBtn.disabled = entry.history.length===0;
+    redoBtn.disabled = entry.future.length===0;
+    delSelBtn.disabled = entry.selected<0;
+    {
+      const i = entry.selected, n = entry.annotations.length;
+      bringFrontBtn.disabled = i<0 || i===n-1;
+      bringFwdBtn.disabled = i<0 || i===n-1;
+      sendBackBtn.disabled = i<0 || i===0;
+      sendBackAllBtn.disabled = i<0 || i===0;
+    }
+
+    const targetType = currentTargetType(entry);
+    const target = currentStyleTarget(entry);
+    const isShapeLike = targetType==='ellipse' || targetType==='rect' || targetType==='line';
+    const isLineLike = targetType==='line';
+
+    lineTypeRow.style.opacity = isLineLike ? '1' : '.35';
+    Object.values(lineTypeBtns).forEach(b=> b.disabled = !isLineLike);
+    Object.entries(lineTypeBtns).forEach(([k,b])=> b.classList.toggle('active', isLineLike && target.style===k));
+
+    styleRow.style.opacity = '1';
+    const styleDisabled = false; // 色・太さはどの注記タイプでも編集可能（ラベルは枠線に反映）
+    Object.values(widthBtns).forEach(b=> b.disabled = styleDisabled);
+    Object.values(swatches).forEach(b=> b.style.pointerEvents = styleDisabled ? 'none' : 'auto');
+    colorPicker.style.pointerEvents = styleDisabled ? 'none' : 'auto';
+    colorPicker.style.opacity = styleDisabled ? '.35' : '1';
+    Object.entries(widthBtns).forEach(([k,b])=> b.classList.toggle('active', !styleDisabled && (target.lw||entry.lw)===Number(k)));
+    Object.entries(swatches).forEach(([k,b])=> b.classList.toggle('active', !styleDisabled && (target.color||entry.color)===k));
+    if(!styleDisabled) colorPicker.value = target.color || entry.color;
+
+    const isLabelLike = targetType==='text' || targetType==='callout';
+    fontRow.style.opacity = isLabelLike ? '1' : '.35';
+    Object.values(fontBtns).forEach(b=> b.disabled = !isLabelLike);
+    const curFontSize = (targetType==='callout') ? (target.fontSize||entry.labelFontSize) : entry.labelFontSize;
+    Object.entries(fontBtns).forEach(([k,b])=> b.classList.toggle('active', isLabelLike && curFontSize===Number(k)));
+    editTextBtn.style.display = (targetType==='callout') ? 'inline-flex' : 'none';
+    leaderToggleBtn.style.display = isLabelLike ? 'inline-flex' : 'none';
+    const curShowLeader = (targetType==='callout') ? (target.showLeader !== false) : (entry.labelShowLeader !== false);
+    leaderToggleBtn.classList.toggle('active', curShowLeader);
+    leaderToggleBtn.textContent = curShowLeader ? '→ 引き出し線:あり' : '→ 引き出し線:なし';
+
+    // crop row: 選択中が画像の時だけ表示
+    const isImageSelected = targetType==='image';
+    cropRow.style.display = isImageSelected ? 'flex' : 'none';
+    if(!isImageSelected) entry.cropping = false;
+    cropToggleBtn.classList.toggle('active', !!entry.cropping);
+    zoomOutBtn.disabled = !entry.cropping;
+    zoomInBtn.disabled = !entry.cropping;
+    cropDoneBtn.style.display = entry.cropping ? 'inline-flex' : 'none';
+    cropHint.style.display = entry.cropping ? 'inline' : 'none';
+  }
+  refresh();
+  wrap._refresh = refresh;
+  return wrap;
+}
+
+function buildEntryCard(entry, idx){
+  const card = document.createElement('div');
+  card.className = 'entry-card';
+
+  const topline = document.createElement('div');
+  topline.className = 'entry-topline';
+
+  const noTab = document.createElement('div');
+  noTab.className = 'no-tab';
+  noTab.innerHTML = `<div class="lbl">NO.</div><div class="num">${idx+1}</div>`;
+  topline.appendChild(noTab);
+
+  const controls = document.createElement('div');
+  controls.className = 'entry-controls';
+  const orderWrap = document.createElement('div'); orderWrap.className='order-btns';
+  const upBtn = document.createElement('button'); upBtn.className='btn btn-outline btn-sm'; upBtn.textContent='↑';
+  upBtn.disabled = idx===0;
+  upBtn.onclick = ()=>{ moveEntry(entry.id,-1); };
+  const downBtn = document.createElement('button'); downBtn.className='btn btn-outline btn-sm'; downBtn.textContent='↓';
+  downBtn.disabled = idx===state.order.length-1;
+  downBtn.onclick = ()=>{ moveEntry(entry.id,1); };
+  orderWrap.appendChild(upBtn); orderWrap.appendChild(downBtn);
+  controls.appendChild(orderWrap);
+  const grow = document.createElement('div'); grow.className='grow'; controls.appendChild(grow);
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn btn-outline btn-sm'; delBtn.textContent = 'この写真を削除';
+  delBtn.onclick = ()=>{
+    if(delBtn.dataset.confirm === '1'){
+      deleteEntry(entry.id);
+    } else {
+      delBtn.dataset.confirm='1'; delBtn.textContent='本当に削除しますか？';
+      delBtn.classList.add('confirm-del');
+      setTimeout(()=>{ delBtn.dataset.confirm=''; delBtn.textContent='この写真を削除'; delBtn.classList.remove('confirm-del'); }, 3000);
+    }
+  };
+  controls.appendChild(delBtn);
+  topline.appendChild(controls);
+  card.appendChild(topline);
+
+  const body = document.createElement('div');
+  body.className = 'entry-body';
+
+  const photoPane = document.createElement('div');
+  photoPane.className = 'photo-pane';
+  const canvasWrap = document.createElement('div');
+  canvasWrap.className = 'canvas-wrap';
+  const canvas = document.createElement('canvas');
+  canvasWrap.appendChild(canvas);
+  photoPane.appendChild(canvasWrap);
+  const toolbarEl = toolButtons(entry, canvas);
+  photoPane.appendChild(toolbarEl);
+  body.appendChild(photoPane);
+
+  requestAnimationFrame(()=>renderCanvas(entry, canvas));
+  attachCanvasEvents(entry, canvas, canvasWrap, toolbarEl._refresh);
+
+  const commentPane = document.createElement('div');
+  commentPane.className = 'comment-pane';
+  const label = document.createElement('label'); label.textContent = 'コメント';
+  const ta = document.createElement('textarea');
+  ta.placeholder = '例：\n・SS壁面\n・不具合箇所';
+  ta.value = entry.comment || '';
+  ta.addEventListener('input', ()=>{ entry.comment = ta.value; saveEntryDebounced(entry.id); });
+  commentPane.appendChild(label);
+  commentPane.appendChild(ta);
+  body.appendChild(commentPane);
+
+  card.appendChild(body);
+  return card;
+}
+
+function moveEntry(id, dir){
+  const i = state.order.indexOf(id);
+  const j = i+dir;
+  if(j<0 || j>=state.order.length) return;
+  [state.order[i], state.order[j]] = [state.order[j], state.order[i]];
+  saveMetaDebounced();
+  renderAll();
+}
+
+async function deleteEntry(id){
+  state.order = state.order.filter(x=>x!==id);
+  delete entries[id];
+  delete imgCache[id];
+  saveMetaDebounced();
+  await storDelete('entry-'+id);
+  renderAll();
+  showToast('削除しました');
+}
+
+/* ============================================================
+   トースト通知
+============================================================ */
+let toastTimer=null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ============================================================
+   フラット化（注記を焼き込んだ画像を生成）
+============================================================ */
+function flattenEntry(entry, opts){
+  opts = opts || {};
+  const off = document.createElement('canvas');
+  off.width = entry.natW; off.height = entry.natH;
+  const ctx = off.getContext('2d');
+  const img = imgCache[entry.id];
+  if(img && img.complete) ctx.drawImage(img,0,0,entry.natW,entry.natH);
+  entry.annotations.forEach(a=>drawAnnotation(ctx,a,entry));
+  if(opts.border){
+    // 出力先（Excelの結合セルなど）が写真をぴったり覆ってしまい、セル側の
+    // 罫線が隠れてしまう場合に備え、枠線を写真そのものに焼き込む
+    const bw = opts.borderWidth || Math.max(2, Math.round(entry.natW/280));
+    ctx.strokeStyle = opts.borderColor || '#000000';
+    ctx.lineWidth = bw;
+    ctx.strokeRect(bw/2, bw/2, off.width-bw, off.height-bw);
+  }
+  return off.toDataURL('image/png');
+}
+
+/* ============================================================
+   ダミー写真（枠だけの空き枠埋め用）
+============================================================ */
+function makeDummyPhotoDataURL(withBorder){
+  const w = 800, h = 600;
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  const ctx = off.getContext('2d');
+  ctx.fillStyle = '#F4F3EF';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = '#DDD8CC'; ctx.lineWidth = 2;
+  ctx.strokeRect(20, 20, w-40, h-40);
+  ctx.fillStyle = '#ACA595';
+  ctx.font = '600 40px "Noto Sans JP", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('写真未添付', w/2, h/2);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  if(withBorder){
+    const bw = Math.max(2, Math.round(w/280));
+    ctx.strokeStyle = '#000000'; ctx.lineWidth = bw;
+    ctx.strokeRect(bw/2, bw/2, w-bw, h-bw);
+  }
+  return off.toDataURL('image/png');
+}
+
+// 実際のエントリー一覧に、必要ならダミー枠(No.6まで)を継ぎ足したリストを作る。
+// 各要素は {real:true, entry} または {real:false} のどちらか。
+function buildExportList(padTo6){
+  const list = state.order.map(id => ({ real:true, entry: entries[id] }));
+  if(padTo6){
+    while(list.length < TEMPLATE_BLOCK_ROWS.length) list.push({ real:false });
+  }
+  return list;
+}
+
+function formatDateJp(dstr){
+  if(!dstr) return '';
+  const [y,m,d] = dstr.split('-');
+  if(!y) return dstr;
+  return `${y}年${parseInt(m,10)}月${parseInt(d,10)}日`;
+}
+
+/* ============================================================
+   Excel 出力（添付いただいた実ファイルをテンプレートとして使用）
+============================================================ */
+function base64ToArrayBuffer(b64){
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+const TEMPLATE_BLOCK_ROWS = [3,16,29,43,56,69]; // テンプレートに元々ある6ブロックの開始行
+const TEMPLATE_LAST_ROW = 80;                    // テンプレートの最終行
+const TEMPLATE_BLOCK_SPAN = 13;                  // 1ブロック=12行+余白1行
+const TEMPLATE_PHOTO_ROWS = 12;
+
+function buildFileName(ext){
+  const dateStr = state.shootDate ? state.shootDate.replace(/-/g,'') : '';
+  const site = (state.siteName||'').trim();
+  return `${dateStr}${site}_写真台帳.${ext}`;
+}
+
+function safeMerge(ws, range){
+  try{ ws.mergeCells(range); }catch(e){ /* 既に結合済みの場合は無視 */ }
+}
+
+async function exportExcel(){
+  if(state.order.length===0){ showToast('写真がありません'); return; }
+  const btn = document.getElementById('btnExportXlsx');
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = '書き出し中…';
+  try{
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_B64));
+    const ws = wb.getWorksheet('写真貼付台紙');
+
+    // 1行目（元々マクロボタン用に確保されていた空白行）は削除すると結合セルがずれて
+    // 壊れるため、行の削除ではなく非表示化で対応する
+    ws.getRow(1).height = 1;
+    ws.getRow(1).hidden = true;
+
+    const wbView = wb.views && wb.views[0];
+    const sheetIndex = wb.worksheets.indexOf(ws);
+    if(wbView) wbView.activeTab = sheetIndex;
+
+    ws.getCell('B2').value = state.siteName || '';
+    ws.getCell('D2').value = '撮影日：' + formatDateJp(state.shootDate);
+
+    const padTo6 = document.getElementById('padTo6Check').checked;
+    const list = buildExportList(padTo6);
+    const n = list.length;
+    const usedTemplateBlocks = Math.min(n, TEMPLATE_BLOCK_ROWS.length);
+
+    // テンプレートに用意されていて使わないブロックはシート末尾から削除
+    // （末尾の削除であれば他の結合セルに影響しない）
+    if(usedTemplateBlocks < TEMPLATE_BLOCK_ROWS.length){
+      const cutRow = TEMPLATE_BLOCK_ROWS[usedTemplateBlocks];
+      const removeCount = (TEMPLATE_LAST_ROW + 1) - cutRow;
+      ws.spliceRows(cutRow, removeCount);
+    }
+
+    function copyBlockStyle(destStartRow){
+      // 最後のテンプレートブロックの書式をそのまま複製する
+      const lastBlockStart = TEMPLATE_BLOCK_ROWS[TEMPLATE_BLOCK_ROWS.length-1];
+      for(let k=0;k<TEMPLATE_PHOTO_ROWS;k++){
+        const srcRow = lastBlockStart + k;
+        const dstRow = destStartRow + k;
+        ws.getRow(dstRow).height = ws.getRow(srcRow).height;
+        for(let col=1; col<=6; col++){
+          ws.getCell(dstRow, col).style = ws.getCell(srcRow, col).style;
+        }
+      }
+      safeMerge(ws, `B${destStartRow}:B${destStartRow+TEMPLATE_PHOTO_ROWS-1}`);
+      safeMerge(ws, `D${destStartRow+1}:E${destStartRow+TEMPLATE_PHOTO_ROWS-1}`);
+      ws.getCell(`D${destStartRow}`).value = 'No.';
+    }
+
+    let nextExtraRow = TEMPLATE_LAST_ROW + 1;
+
+    for(let i=0;i<n;i++){
+      const item = list[i];
+      let r;
+      if(i < TEMPLATE_BLOCK_ROWS.length){
+        r = TEMPLATE_BLOCK_ROWS[i];
+      } else {
+        r = nextExtraRow;
+        copyBlockStyle(r);
+        nextExtraRow += TEMPLATE_BLOCK_SPAN;
+      }
+
+      // 元のテンプレートの結合セルをそのまま利用（i<6）しつつ、
+      // 念のためこの時点で結合状態を確定させる
+      safeMerge(ws, `B${r}:B${r+TEMPLATE_PHOTO_ROWS-1}`);
+      safeMerge(ws, `D${r+1}:E${r+TEMPLATE_PHOTO_ROWS-1}`);
+
+      ws.getCell(`E${r}`).value = i+1;
+      const cCell = ws.getCell(`D${r+1}`);
+      cCell.value = item.real ? (item.entry.comment || '') : '';
+      // マージせず完全に上書き（元テンプレートのshrinkToFit:trueがwrapTextと競合し
+      // 縦中央揃えが効かなくなるのを防ぐ）。結合範囲の全セルに同じ配置を適用し、
+      // 表示ソフトによって別セルの配置が優先されて崩れるのを防ぐ。
+      const commentAlign = { horizontal:'left', vertical:'middle', wrapText:true, shrinkToFit:false };
+      cCell.alignment = commentAlign;
+      for(let rr=r+1; rr<r+TEMPLATE_PHOTO_ROWS; rr++){
+        ws.getCell(`D${rr}`).alignment = commentAlign;
+        ws.getCell(`E${rr}`).alignment = commentAlign;
+      }
+
+      // 写真貼付セル（B列, 12行分）にぴったり合わせて配置。
+      // セルの罫線は画像に隠れて見えなくなるため、枠線は写真側に焼き込む。
+      const dataURL = item.real
+        ? flattenEntry(item.entry, { border:true, borderColor:'#000000' })
+        : makeDummyPhotoDataURL(true);
+      const base64 = dataURL.split(',')[1];
+      const imgId = wb.addImage({ base64, extension:'png' });
+      ws.addImage(imgId, {
+        tl: { col:1, row:r-1 },
+        br: { col:2, row:(r-1)+TEMPLATE_PHOTO_ROWS }
+      });
+
+      // ブロック間の余白行（罫線が残っていることがあるため明示的にクリア）
+      const gapRow = r + TEMPLATE_PHOTO_ROWS;
+      ['A','B','C','D','E','F'].forEach(col=>{
+        ws.getCell(`${col}${gapRow}`).border = {};
+      });
+    }
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    downloadBlob(blob, buildFileName('xlsx'));
+    showToast('Excelファイルを書き出しました');
+  }catch(err){
+    console.error(err);
+    showToast('Excel出力に失敗しました');
+  }finally{
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
+
+/* ============================================================
+   PDF 出力
+============================================================ */
+async function exportPdf(){
+  if(state.order.length===0){ showToast('写真がありません'); return; }
+  const btn = document.getElementById('btnExportPdf');
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = '書き出し中…';
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-99999px';
+  container.style.top = '0';
+  container.style.width = '794px';
+  container.style.background = '#fff';
+  document.body.appendChild(container);
+
+  try{
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const perPage = 3;
+    const padTo6 = document.getElementById('padTo6Check').checked;
+    const list = buildExportList(padTo6);
+    let pageIndex = 0;
+
+    for(let start=0; start<list.length; start+=perPage){
+      const chunk = list.slice(start, start+perPage);
+      const page = document.createElement('div');
+      page.style.cssText = 'width:794px;min-height:1123px;padding:40px 36px;font-family:"Noto Sans JP",sans-serif;background:#fff;box-sizing:border-box;';
+
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #1C2430;padding-bottom:8px;margin-bottom:16px;';
+      header.innerHTML = `<div style="font-size:16px;font-weight:700;">${escapeHtml(state.siteName||'')}</div>
+        <div style="font-size:13px;font-weight:700;">撮影日：${escapeHtml(formatDateJp(state.shootDate))}</div>`;
+      page.appendChild(header);
+
+      for(let k=0;k<chunk.length;k++){
+        const item = chunk[k];
+        const globalIdx = start + k + 1;
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; gap:14px; margin-bottom:16px; align-items:stretch; height:230px;';
+        const flatURL = item.real ? flattenEntry(item.entry) : makeDummyPhotoDataURL(false);
+
+        const imgBox = document.createElement('div');
+        imgBox.style.cssText = 'flex:1 1 480px; height:230px; border:1px solid #1C2430; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#eee;';
+        const img = document.createElement('img');
+        img.src = flatURL;
+        img.style.cssText = 'max-width:100%; max-height:100%; width:auto; height:auto; display:block;';
+        imgBox.appendChild(img);
+        row.appendChild(imgBox);
+
+        const infoBox = document.createElement('div');
+        infoBox.style.cssText = 'flex:0 0 220px; height:230px; border:1px solid #1C2430; display:flex; flex-direction:column; overflow:hidden;';
+        const noHead = document.createElement('div');
+        noHead.style.cssText = 'border-bottom:1px solid #1C2430; padding:5px 10px; font-weight:700; font-size:14px;';
+        noHead.textContent = 'No.' + globalIdx;
+        infoBox.appendChild(noHead);
+        const commentDiv = document.createElement('div');
+        commentDiv.style.cssText = 'padding:10px; font-size:13px; line-height:1.7; white-space:pre-wrap; flex:1;';
+        commentDiv.textContent = item.real ? (item.entry.comment || '') : '';
+        infoBox.appendChild(commentDiv);
+        row.appendChild(infoBox);
+
+        page.appendChild(row);
+      }
+
+      container.innerHTML = '';
+      container.appendChild(page);
+      await new Promise(res=>{
+        const imgs = page.querySelectorAll('img');
+        let remaining = imgs.length;
+        if(remaining===0) return res();
+        imgs.forEach(im=>{
+          if(im.complete) { if(--remaining<=0) res(); }
+          else im.onload = im.onerror = ()=>{ if(--remaining<=0) res(); };
+        });
+      });
+      await new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res)));
+
+      const canvas = await html2canvas(page, { scale:2, useCORS:true, backgroundColor:'#ffffff' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      if(pageIndex>0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, '', 'FAST');
+      pageIndex++;
+    }
+
+    pdf.save(buildFileName('pdf'));
+    showToast('PDFファイルを書き出しました');
+  }catch(err){
+    console.error(err);
+    showToast('PDF出力に失敗しました');
+  }finally{
+    document.body.removeChild(container);
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+}
+
+/* ============================================================
+   プロジェクトの保存・読み込み（注記も含めて編集を再開できるファイル）
+============================================================ */
+function exportProject(){
+  if(state.order.length===0){ showToast('写真がありません'); return; }
+  const data = {
+    appProject: 'photo-ledger', version: 1,
+    siteName: state.siteName, shootDate: state.shootDate,
+    entries: state.order.map(id=>{
+      const e = entries[id];
+      return { comment:e.comment, img:e.img, natW:e.natW, natH:e.natH, annotations:e.annotations };
+    })
+  };
+  const blob = new Blob([JSON.stringify(data)], { type:'application/json' });
+  downloadBlob(blob, buildFileName('json'));
+  showToast('プロジェクトファイルを保存しました');
+}
+
+async function importProject(file){
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(!data || !Array.isArray(data.entries)) throw new Error('invalid format');
+
+    // 既存データを破棄して置き換え
+    for(const id of state.order.slice()) await storDelete('entry-'+id);
+    entries = {}; imgCache = {};
+    state = { siteName: data.siteName||'', shootDate: data.shootDate||'', order: [] };
+    document.getElementById('siteName').value = state.siteName;
+    document.getElementById('shootDate').value = state.shootDate;
+
+    for(const ed of data.entries){
+      const id = uid();
+      const entry = Object.assign({id, comment:'', annotations:[]}, ed, {
+        tool:'select', selected:-1, color: COLORS[0], lw: LINE_WIDTHS[1], lineType:'arrow-one',
+        labelFontSize: FONT_SIZES[1], labelShowLeader: true, history: [], future: [], _imgCache: {}
+      });
+      entries[id] = entry;
+      state.order.push(id);
+
+      const img = new Image();
+      await new Promise(res=>{ img.onload=res; img.onerror=res; img.src=ed.img; });
+      imgCache[id] = img;
+
+      const insetImgs = entry.annotations.filter(a=>a.type==='image' && a.src);
+      await Promise.all(insetImgs.map(a=> new Promise(res=>{
+        const im = new Image();
+        im.onload=res; im.onerror=res; im.src=a.src;
+        entry._imgCache[a._id] = im;
+      })));
+
+      saveEntryDebounced(id);
+    }
+    saveMetaDebounced();
+    renderAll();
+    showToast('プロジェクトを読み込みました');
+  }catch(err){
+    console.error(err);
+    showToast('読み込みに失敗しました。プロジェクトファイル（.json）をご確認ください');
+  }
+}
+
+/* ============================================================
+   イベント配線
+============================================================ */
+document.getElementById('siteName').addEventListener('input', (e)=>{
+  state.siteName = e.target.value; saveMetaDebounced();
+});
+document.getElementById('shootDate').addEventListener('input', (e)=>{
+  state.shootDate = e.target.value; saveMetaDebounced();
+});
+document.getElementById('btnExportXlsx').addEventListener('click', exportExcel);
+document.getElementById('btnExportPdf').addEventListener('click', exportPdf);
+document.getElementById('btnSaveProject').addEventListener('click', exportProject);
+document.getElementById('btnLoadProject').addEventListener('click', (e)=>{
+  const btn = e.currentTarget;
+  if(state.order.length>0 && btn.dataset.confirm!=='1'){
+    btn.dataset.confirm='1'; btn.textContent='現在の内容は置き換わります。よろしいですか？';
+    setTimeout(()=>{ btn.dataset.confirm=''; btn.textContent='プロジェクト読み込み'; }, 3500);
+    return;
+  }
+  btn.dataset.confirm=''; btn.textContent='プロジェクト読み込み';
+  document.getElementById('projectFileInput').click();
+});
+document.getElementById('projectFileInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(file) importProject(file);
+  e.target.value = '';
+});
+document.getElementById('btnReset').addEventListener('click', (e)=>{
+  const btn = e.target;
+  if(btn.dataset.confirm==='1'){
+    (async ()=>{
+      for(const id of state.order.slice()) await storDelete('entry-'+id);
+      await storDelete('ledger-meta');
+      state = {siteName:'', shootDate:'', order:[]};
+      entries = {}; imgCache = {};
+      document.getElementById('siteName').value='';
+      document.getElementById('shootDate').value='';
+      renderAll();
+      showToast('すべて消去しました');
+    })();
+    btn.dataset.confirm=''; btn.textContent='全消去';
+  } else {
+    btn.dataset.confirm='1'; btn.textContent='本当に全消去しますか？';
+    setTimeout(()=>{ btn.dataset.confirm=''; btn.textContent='全消去'; }, 3000);
+  }
+});
+
+const addZone = document.getElementById('addZone');
+const fileInput = document.getElementById('fileInput');
+addZone.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', (e)=>{
+  addPhotoFiles(e.target.files);
+  fileInput.value = '';
+});
+['dragenter','dragover'].forEach(ev=>{
+  addZone.addEventListener(ev, (e)=>{ e.preventDefault(); addZone.classList.add('drag'); });
+  document.body.addEventListener(ev, (e)=>{ e.preventDefault(); document.getElementById('dropOverlay').classList.add('show'); });
+});
+['dragleave','drop'].forEach(ev=>{
+  document.body.addEventListener(ev, (e)=>{ document.getElementById('dropOverlay').classList.remove('show'); });
+});
+addZone.addEventListener('dragleave', ()=>addZone.classList.remove('drag'));
+addZone.addEventListener('drop', (e)=>{
+  e.preventDefault(); addZone.classList.remove('drag');
+  addPhotoFiles(e.dataTransfer.files);
+});
+document.body.addEventListener('drop', (e)=>e.preventDefault());
+document.body.addEventListener('dragover', (e)=>e.preventDefault());
+
+init();
+})();
+</script>
+</body>
+</html>
