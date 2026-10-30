@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="104" fill="#1D3A54"/>
+  <!-- ledger sheet -->
+  <rect x="96" y="84" width="320" height="344" rx="22" fill="#F5F3EC"/>
+  <!-- photo -->
+  <rect x="128" y="120" width="256" height="168" rx="10" fill="#2F5D82"/>
+  <circle cx="326" cy="166" r="22" fill="#F5F3EC"/>
+  <path d="M128 288 L214 192 L268 252 L304 214 L384 288 Z" fill="#E4ECF2"/>
+  <!-- annotation circle (rust) -->
+  <ellipse cx="232" cy="214" rx="56" ry="38" fill="none" stroke="#C1440E" stroke-width="12"/>
+  <!-- comment lines -->
+  <rect x="128" y="322" width="256" height="14" rx="7" fill="#B9B2A0"/>
+  <rect x="128" y="354" width="256" height="14" rx="7" fill="#DAD4C4"/>
+  <rect x="128" y="386" width="160" height="14" rx="7" fill="#DAD4C4"/>
+</svg>
